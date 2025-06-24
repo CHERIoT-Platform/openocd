@@ -43,6 +43,13 @@ int riscv_program_write(struct riscv_program *program)
 /** Add ebreak and execute the program. */
 int riscv_program_exec(struct riscv_program *p, struct target *t)
 {
+	// Disable program buffer execution on CHERIOT until we have a way
+	// to save/restore capabilities.
+	struct riscv_info *info = t->arch_info;
+	if (info->cheriot) {
+		return ERROR_FAIL;
+	}
+
 	keep_alive();
 
 	riscv_reg_t saved_registers[GDB_REGNO_XPR31 + 1];
