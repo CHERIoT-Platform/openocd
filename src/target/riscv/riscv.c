@@ -4089,6 +4089,11 @@ int riscv_init_registers(struct target *target)
 			}
 			r->group = "general";
 			r->feature = &feature_cpu;
+
+			// GPRs are capability-sized on CHERIOT.
+			if (info->cheriot) {
+				r->size = 64;
+			}
 		} else if (number == GDB_REGNO_PC) {
 			r->caller_save = true;
 			sprintf(reg_name, "pc");
