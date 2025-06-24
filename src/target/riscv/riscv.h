@@ -108,6 +108,10 @@ struct riscv_info {
 	/* It's possible that each core has a different supported ISA set. */
 	int xlen;
 	riscv_reg_t misa;
+
+	/* Whether the hart implements CHERIOT or not*/
+	bool cheriot;
+
 	/* Cached value of vlenb. 0 if vlenb is not readable for some reason. */
 	unsigned int vlenb;
 

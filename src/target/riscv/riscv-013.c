@@ -1665,6 +1665,9 @@ static int examine(struct target *target)
 	RISCV_INFO(r);
 	r->impebreak = get_field(dmstatus, DM_DMSTATUS_IMPEBREAK);
 
+	// CHERIOT is off by default.
+	r->cheriot = false;
+
 	if (!has_sufficient_progbuf(target, 2)) {
 		LOG_WARNING("We won't be able to execute fence instructions on this "
 				"target. Memory may not always appear consistent. "
