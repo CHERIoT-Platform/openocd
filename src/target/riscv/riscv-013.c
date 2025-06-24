@@ -1735,6 +1735,11 @@ static int examine(struct target *target)
 	else
 		r->xlen = 32;
 
+	/* Force XLEN to 32 on CHERIOT. It will normally be detected as 64, due to cap registers being 64-bits. */
+	if (r->cheriot) {
+		r->xlen = 32;
+	}
+
 	if (register_read(target, &r->misa, GDB_REGNO_MISA)) {
 		LOG_ERROR("Fatal: Failed to read MISA from hart %d.", r->current_hartid);
 		return ERROR_FAIL;
