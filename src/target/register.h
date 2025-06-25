@@ -94,6 +94,7 @@ enum reg_data_type_class {
 	REG_TYPE_CLASS_UNION,
 	REG_TYPE_CLASS_STRUCT,
 	REG_TYPE_CLASS_FLAGS,
+	REG_TYPE_CLASS_CAP,
 };
 
 struct reg_data_type {

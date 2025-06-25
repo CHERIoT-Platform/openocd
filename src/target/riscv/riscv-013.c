@@ -1665,9 +1665,6 @@ static int examine(struct target *target)
 	RISCV_INFO(r);
 	r->impebreak = get_field(dmstatus, DM_DMSTATUS_IMPEBREAK);
 
-	// FIXME: CHERIOT should only be enabled after a probing sequence TBD.
-	r->cheriot = true;
-
 	if (!has_sufficient_progbuf(target, 2)) {
 		LOG_WARNING("We won't be able to execute fence instructions on this "
 				"target. Memory may not always appear consistent. "
@@ -1734,6 +1731,16 @@ static int examine(struct target *target)
 		r->xlen = 64;
 	else
 		r->xlen = 32;
+
+
+	/* Probe for CHERIOT by checking for marchid == 0xce1
+	   Perhaps this should check mvendorid as well? */
+	uint64_t marchid = 0;
+	result = register_read_abstract(target, &marchid, CSR_MARCHID+GDB_REGNO_CSR0, 32);
+	if (result == ERROR_OK && marchid == 0xCE1) {
+		LOG_INFO("CHERIOT detected");
+		r->cheriot = true;
+	}
 
 	/* Force XLEN to 32 on CHERIOT. It will normally be detected as 64, due to cap registers being 64-bits. */
 	if (r->cheriot) {

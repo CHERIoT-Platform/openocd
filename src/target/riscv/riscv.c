@@ -3859,6 +3859,10 @@ int riscv_init_registers(struct target *target)
 	static struct reg_data_type type_uint32 = { .type = REG_TYPE_UINT32, .id = "uint32" };
 	static struct reg_data_type type_uint64 = { .type = REG_TYPE_UINT64, .id = "uint64" };
 	static struct reg_data_type type_uint128 = { .type = REG_TYPE_UINT128, .id = "uint128" };
+	static struct reg_data_type type_cheriot_cap = {
+		.type = REG_TYPE_ARCH_DEFINED,
+		.id = "cheriot capability",
+		.type_class = REG_TYPE_CLASS_CAP};
 
 	/* This is roughly the XML we want:
 	 * <vector id="bytes" type="uint8" count="16"/>
@@ -4093,6 +4097,7 @@ int riscv_init_registers(struct target *target)
 			// GPRs are capability-sized on CHERIOT.
 			if (info->cheriot) {
 				r->size = 64;
+				r->reg_data_type = &type_cheriot_cap;
 			}
 		} else if (number == GDB_REGNO_PC) {
 			r->caller_save = true;
