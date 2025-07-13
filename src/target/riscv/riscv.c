@@ -4344,6 +4344,11 @@ int riscv_init_registers(struct target *target)
 				case CSR_VLENB:
 					r->exist = riscv_supports_extension(target, 'V');
 					break;
+				case CSR_MTVEC:
+				case CSR_MEPC:
+					/* MTVEC and MEPC are inaccessible on CHERIOT. They must be access via
+					   the special cap registers MTCC and MEPCC respectively. */
+					r->exist = !info->cheriot;
 			}
 
 			if (!r->exist && !list_empty(&info->expose_csr)) {
