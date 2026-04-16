@@ -3360,6 +3360,10 @@ error:
 	return result;
 }
 
+int cheriot_save_register(struct target *target, enum gdb_regno regid);
+int cheriot_restore_register(struct target *target, enum gdb_regno regid);
+
+
 /* Only need to save/restore one GPR to read a single word, and the progbuf
  * program doesn't need to increment. */
 static int read_memory_progbuf_one(struct target *target, target_addr_t address,
@@ -3373,7 +3377,10 @@ static int read_memory_progbuf_one(struct target *target, target_addr_t address,
 	uint64_t s0;
 	int result = ERROR_FAIL;
 
-	if (register_read(target, &s0, GDB_REGNO_S0) != ERROR_OK)
+	RISCV_INFO(info);
+	if (info->cheriot && cheriot_save_register(target, GDB_REGNO_S0) != ERROR_OK)
+		goto restore_mstatus;
+	if (!info->cheriot && register_read(target, &s0, GDB_REGNO_S0) != ERROR_OK)
 		goto restore_mstatus;
 
 	/* Write the program (load, increment) */
@@ -3423,7 +3430,9 @@ static int read_memory_progbuf_one(struct target *target, target_addr_t address,
 	result = ERROR_OK;
 
 restore_s0:
-	if (riscv_set_register(target, GDB_REGNO_S0, s0) != ERROR_OK)
+	if (!info->cheriot && riscv_set_register(target, GDB_REGNO_S0, s0) != ERROR_OK)
+		result = ERROR_FAIL;
+	if (info->cheriot && cheriot_restore_register(target, GDB_REGNO_S0) != ERROR_OK)
 		result = ERROR_FAIL;
 
 restore_mstatus:
