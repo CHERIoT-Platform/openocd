@@ -4379,6 +4379,12 @@ COMMAND_HANDLER(riscv_set_mem_access)
 	return ERROR_OK;
 }
 
+int enable_cheriot(struct target* target) {
+	RISCV_INFO(r);
+	r->xlen = 32;
+	return ERROR_OK;
+}
+
 COMMAND_HANDLER(riscv_enable_cheriot)
 {
 	struct target *target = get_current_target(CMD_CTX);
@@ -4397,22 +4403,30 @@ COMMAND_HANDLER(riscv_enable_cheriot)
 	if (CMD_ARGC < 1) {
 		LOG_WARNING("cheriot enabled, but no cheriot target given, defaulting to iceni2");
 		r->cheriot = CHERIOT_ICENI_2;
-		return ERROR_OK;
-	}
-	if (CMD_ARGC > 1) {
+	}else if(CMD_ARGC == 1) {
+		for(struct enable_cheriot_mapping *ecm = mappings; ecm->key != NULL; ecm++) {
+			if (strcmp(ecm->key, CMD_ARGV[0]) == 0) {
+				r->cheriot = ecm->value;
+				break;
+			}
+		}
+	} else {
 		command_print(CMD, "Command takes at most 1 parameter");
 		return ERROR_COMMAND_ARGUMENT_INVALID;
 	}
-	for(struct enable_cheriot_mapping *ecm = mappings; ecm->key != NULL; ecm++) {
-		if (strcmp(ecm->key, CMD_ARGV[0]) == 0) {
-			r->cheriot = ecm->value;
-			return ERROR_OK;
-		}
+
+	if(!r->cheriot) {
+		LOG_ERROR("Unknown argument '%s'. "
+			"Must be one of: 'iceni1', 'iceni2' or 'sonata'.", CMD_ARGV[0]);
+		return ERROR_COMMAND_SYNTAX_ERROR;
 	}
 
-	LOG_ERROR("Unknown argument '%s'. "
-		"Must be one of: 'iceni1', 'iceni2' or 'sonata'.", CMD_ARGV[0]);
-	return ERROR_COMMAND_SYNTAX_ERROR;
+	int retval = enable_cheriot(target);
+	if(retval != ERROR_OK) {
+		LOG_ERROR("Error enabling cheriot");
+	}
+
+	return retval;
 }
 
 static bool parse_csr_address(const char *reg_address_str, unsigned int *reg_addr)
