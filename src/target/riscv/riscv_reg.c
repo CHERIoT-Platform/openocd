@@ -288,10 +288,23 @@ static struct reg_data_type *gdb_regno_reg_data_type(const struct target *target
 			&type_ieee_single_double :
 			&type_ieee_single;
 	}
+	RISCV_INFO(info);
 	if (regno >= GDB_REGNO_V0 && regno <= GDB_REGNO_V31) {
-		RISCV_INFO(info);
 		return &info->type_vector;
 	}
+
+	if (info->cheriot
+			&& (regno <= GDB_REGNO_XPR31 ||
+				regno == GDB_REGNO_PC ||
+				regno == GDB_REGNO_PRIV)) {
+		static struct reg_data_type type_cheriot_cap = {
+			.type = REG_TYPE_ARCH_DEFINED,
+			.id = "cheriot capability",
+			.type_class = REG_TYPE_CLASS_CAP,
+		};
+		return &type_cheriot_cap;
+	}
+
 	return NULL;
 }
 
