@@ -2127,6 +2127,9 @@ static int examine(struct target *target)
 					info->index, __func__);
 			return ERROR_FAIL;
 		}
+
+	// CHERIOT is off by default.
+	r->cheriot = CHERIOT_NONE;
 	}
 
 	target->state = TARGET_HALTED;

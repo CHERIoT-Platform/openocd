@@ -4379,6 +4379,41 @@ COMMAND_HANDLER(riscv_set_mem_access)
 	return ERROR_OK;
 }
 
+COMMAND_HANDLER(riscv_enable_cheriot)
+{
+	struct target *target = get_current_target(CMD_CTX);
+	struct enable_cheriot_mapping {
+		char* key;
+		enum cheriot_variant value;
+	};
+	static const struct enable_cheriot_mapping mappings[] = {
+		{"iceni1", CHERIOT_ICENI_1},
+		{"iceni2", CHERIOT_ICENI_2},
+		{"sonata", CHERIOT_SONATA},
+		{NULL, CHERIOT_NONE},
+	};
+
+	RISCV_INFO(r);
+	if (CMD_ARGC < 1) {
+		LOG_WARNING("cheriot enabled, but no cheriot target given, defaulting to iceni2");
+		r->cheriot = CHERIOT_ICENI_2;
+		return ERROR_OK;
+	}
+	if (CMD_ARGC > 1) {
+		command_print(CMD, "Command takes at most 1 parameter");
+		return ERROR_COMMAND_ARGUMENT_INVALID;
+	}
+	for(struct enable_cheriot_mapping *ecm = mappings; ecm->key != NULL; ecm++) {
+		if (strcmp(ecm->key, CMD_ARGV[0]) == 0) {
+			r->cheriot = ecm->value;
+			return ERROR_OK;
+		}
+	}
+
+	LOG_ERROR("Unknown argument '%s'. "
+		"Must be one of: 'iceni1', 'iceni2' or 'sonata'.", CMD_ARGV[0]);
+	return ERROR_COMMAND_SYNTAX_ERROR;
+}
 
 static bool parse_csr_address(const char *reg_address_str, unsigned int *reg_addr)
 {
@@ -5871,6 +5906,13 @@ static const struct command_registration riscv_exec_command_handlers[] = {
 		.help = "When on (default), OpenOCD will automatically execute fence instructions in some situations. "
 			"When off, users need to take care of memory coherency themselves, for example by using "
 			"`riscv exec_progbuf` to execute fence or CMO instructions."
+	},
+	{
+		.name = "enable_cheriot",
+		.handler = riscv_enable_cheriot,
+		.mode = COMMAND_ANY,
+		.usage = "[iceni1|iceni2|sonata]",
+		.help = "Enable cheriot and set the variant"
 	},
 	{
 		.chain = smp_command_handlers

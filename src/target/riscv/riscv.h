@@ -92,6 +92,13 @@ enum riscv_hart_state {
 	RISCV_STATE_UNAVAILABLE
 };
 
+enum cheriot_variant {
+	CHERIOT_NONE = 0,
+	CHERIOT_SONATA,
+	CHERIOT_ICENI_1,
+	CHERIOT_ICENI_2,
+};
+
 /* RISC-V-specific data assigned to a register. */
 typedef struct {
 	struct target *target;
@@ -164,7 +171,6 @@ riscv_mem_access_is_write(const struct riscv_mem_access_args args)
 	return !args.read_buffer && args.write_buffer;
 }
 
-
 struct riscv_info {
 	unsigned int common_magic;
 
@@ -180,6 +186,10 @@ struct riscv_info {
 	int xlen;
 	/* TODO: use the value from the register cache instead. */
 	riscv_reg_t misa;
+
+	/* Which variant of cheriot is implemented*/
+	enum cheriot_variant cheriot;
+
 	/* TODO: use the value from the register cache instead.
 	 * Cached value of vlenb. 0 indicates there is no vector support.
 	 * Note that you can have vector support without misa.V set, because
