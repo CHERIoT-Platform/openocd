@@ -338,6 +338,15 @@ uint32_t gdb_regno_size(const struct target *target, uint32_t regno)
 			return 32;
 		}
 	}
+	// GPRs are capability-sized on CHERIOT.
+	// Sonata boards only expose regular riscv32 registers.
+	RISCV_INFO(info);
+	if (info->cheriot > CHERIOT_SONATA
+			&& (regno <= GDB_REGNO_XPR31 ||
+				regno == GDB_REGNO_PC ||
+				regno == GDB_REGNO_PRIV)) {
+		return 64;
+	}
 	return riscv_xlen(target);
 }
 
