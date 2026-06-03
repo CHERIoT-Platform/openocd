@@ -935,6 +935,16 @@ static int register_read_abstract_with_size(struct target *target,
 	if (number >= GDB_REGNO_V0 && number <= GDB_REGNO_V31)
 		return ERROR_FAIL;
 
+    // Custom register numbers correspond to the special capability registers on CHERIOT
+    RISCV_INFO(rv_info)
+    if (number >= GDB_REGNO_COUNT && rv_info->cheriot) {
+        // Special capability registers are read by forcing a 64-bit CSR read using
+        // offset in the SCR address space.
+        number -= GDB_REGNO_COUNT;
+        number += GDB_REGNO_CSR0;
+        size = 64;
+    }
+
 	uint32_t command = riscv013_access_register_command(target, number, size,
 			AC_ACCESS_REGISTER_TRANSFER);
 	if (is_command_unsupported(target, command))
