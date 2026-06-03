@@ -389,6 +389,7 @@ static bool is_known_standard_csr(unsigned int csr_num)
 
 bool riscv_reg_impl_gdb_regno_exist(const struct target *target, uint32_t regno)
 {
+	RISCV_INFO(info);
 	switch (regno) {
 	case GDB_REGNO_VLENB:
 	case GDB_REGNO_MTOPI:
@@ -563,6 +564,12 @@ bool riscv_reg_impl_gdb_regno_exist(const struct target *target, uint32_t regno)
 		return reg_exists(target, GDB_REGNO_MTOPI) &&
 			riscv_xlen(target) == 32 &&
 			riscv_supports_extension(target, 'H');
+	case CSR_MTVEC:
+	case CSR_MEPC:
+		// MTVEC and MEPC are inaccessible on CHERIOT. They must be access via
+		// the special cap registers MTCC and MEPCC respectively.
+		return !info->cheriot;
+
 	}
 	return is_known_standard_csr(csr_number);
 }
