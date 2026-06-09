@@ -1742,18 +1742,11 @@ static int examine(struct target *target)
 	else
 		r->xlen = 32;
 
-
-	/* Probe for CHERIOT by checking for marchid == 0xce1
-	   Perhaps this should check mvendorid as well? */
-	uint64_t marchid = 0;
-	result = register_read_abstract(target, &marchid, CSR_MARCHID+GDB_REGNO_CSR0, 32);
-	if (result == ERROR_OK && marchid == 0xCE1) {
-		LOG_INFO("CHERIOT detected");
-		r->cheriot = true;
-	}
+	// FIXME: First versions on CHERIOT chips use placeholders. With later
+	// ones, we should probe for CHERIOT mvendorid - marchid pairs
 
 	/* Force XLEN to 32 on CHERIOT. It will normally be detected as 64, due to cap registers being 64-bits. */
-	if (r->cheriot) {
+	if (cheriot_variant_is_cheriot(r)) {
 		r->xlen = 32;
 	}
 
@@ -3378,9 +3371,9 @@ static int read_memory_progbuf_one(struct target *target, target_addr_t address,
 	int result = ERROR_FAIL;
 
 	RISCV_INFO(info);
-	if (info->cheriot && cheriot_save_register(target, GDB_REGNO_S0) != ERROR_OK)
+	if (cheriot_variant_can_spill_registers(info) && cheriot_save_register(target, GDB_REGNO_S0) != ERROR_OK)
 		goto restore_mstatus;
-	if (!info->cheriot && register_read(target, &s0, GDB_REGNO_S0) != ERROR_OK)
+	if (!cheriot_variant_can_spill_registers(info) && register_read(target, &s0, GDB_REGNO_S0) != ERROR_OK)
 		goto restore_mstatus;
 
 	/* Write the program (load, increment) */
@@ -3430,9 +3423,9 @@ static int read_memory_progbuf_one(struct target *target, target_addr_t address,
 	result = ERROR_OK;
 
 restore_s0:
-	if (!info->cheriot && riscv_set_register(target, GDB_REGNO_S0, s0) != ERROR_OK)
+	if (!cheriot_variant_can_spill_registers(info) && riscv_set_register(target, GDB_REGNO_S0, s0) != ERROR_OK)
 		result = ERROR_FAIL;
-	if (info->cheriot && cheriot_restore_register(target, GDB_REGNO_S0) != ERROR_OK)
+	if (cheriot_variant_can_spill_registers(info) && cheriot_restore_register(target, GDB_REGNO_S0) != ERROR_OK)
 		result = ERROR_FAIL;
 
 restore_mstatus:

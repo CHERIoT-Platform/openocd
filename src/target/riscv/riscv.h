@@ -59,6 +59,13 @@ enum riscv_halt_reason {
 	RISCV_HALT_ERROR
 };
 
+enum cheriot_variant {
+    CHERIOT_NONE = 0, // We want to ensure this is falsely
+    CHERIOT_SONATA,
+    CHERIOT_MPW_1,
+    CHERIOT_MPW_2,
+};
+
 typedef struct {
 	struct target *target;
 	unsigned int custom_number;
@@ -109,8 +116,8 @@ struct riscv_info {
 	int xlen;
 	riscv_reg_t misa;
 
-	/* Whether the hart implements CHERIOT or not*/
-	bool cheriot;
+	/* Whether the hart implements CHERIOT or not, and which version */
+	enum cheriot_variant cheriot;
 
 	/* Cached value of vlenb. 0 if vlenb is not readable for some reason. */
 	unsigned int vlenb;
@@ -368,4 +375,9 @@ void riscv_add_bscan_tunneled_scan(struct target *target, struct scan_field *fie
 int riscv_read_by_any_size(struct target *target, target_addr_t address, uint32_t size, uint8_t *buffer);
 int riscv_write_by_any_size(struct target *target, target_addr_t address, uint32_t size, uint8_t *buffer);
 
+// CHERIOT Helper functions
+int riscv_can_access_mtvec_mepcc(struct riscv_info * info);
+int cheriot_variant_is_cheriot(struct riscv_info * info);
+int cheriot_variant_can_access_cap_gpr(struct riscv_info * info);
+int cheriot_variant_can_spill_registers(struct riscv_info * info);
 #endif

@@ -47,7 +47,7 @@ static unsigned int cheriot_get_saverestore_csr(enum gdb_regno regid) {
 
 int cheriot_save_register(struct target *target, enum gdb_regno regid) {
 	struct riscv_info *info = target->arch_info;
-	if (!info->cheriot) {
+	if (!cheriot_variant_can_spill_registers(info)) {
 		return ERROR_FAIL;
 	}
 
@@ -70,7 +70,7 @@ int cheriot_save_register(struct target *target, enum gdb_regno regid) {
 
 int cheriot_restore_register(struct target *target, enum gdb_regno regid) {
 	struct riscv_info *info = target->arch_info;
-	if (!info->cheriot) {
+	if (!cheriot_variant_can_spill_registers(info)) {
 		return ERROR_FAIL;
 	}
 
@@ -107,7 +107,12 @@ int riscv_program_exec(struct riscv_program *p, struct target *t)
 	for (size_t i = GDB_REGNO_ZERO + 1; i <= GDB_REGNO_XPR31; ++i) {
 		if (p->writes_xreg[i]) {
 			LOG_DEBUG("Saving register %d as used by program", (int)i);
-			if (info->cheriot) {
+			if (cheriot_variant_is_cheriot(info)) {
+				if (!cheriot_variant_can_spill_registers(info)) {
+					LOG_ERROR("Cannot save register on early cheriot versions");
+					// CHERIoT registers cannot be saved in earliest board versions
+					return ERROR_FAIL;
+				}
 				// CHERIoT capabilities cannot be saved to host.
 				// Use an on-device store for them instead.
 				int result = cheriot_save_register(t, i);
@@ -144,7 +149,7 @@ int riscv_program_exec(struct riscv_program *p, struct target *t)
 
 	for (size_t i = GDB_REGNO_ZERO; i <= GDB_REGNO_XPR31; ++i)
 		if (p->writes_xreg[i]) {
-			if (info->cheriot) {
+			if (cheriot_variant_can_spill_registers(info)) {
 				cheriot_restore_register(t, i);
 				continue;
 			}

@@ -2329,6 +2329,26 @@ int riscv_openocd_step(struct target *target, bool current,
 	return out;
 }
 
+/*** CHERIOT Helper Functions ***/
+int cheriot_variant_is_cheriot(struct riscv_info * info) {
+       return info->cheriot >= CHERIOT_MPW_1;
+}
+
+int cheriot_variant_can_access_cap_gpr(struct riscv_info * info) {
+       return info->cheriot >= CHERIOT_MPW_1;
+}
+
+int cheriot_variant_can_spill_registers(struct riscv_info * info) {
+       return info->cheriot >= CHERIOT_MPW_2;
+}
+
+int riscv_can_access_mtvec_mepcc(struct riscv_info * info) {
+       /* MTVEC and MEPC are inaccessible on CHERIOT. They must be access via
+          the special cap registers MTCC and MEPCC respectively. */
+       // TODO: check on Sonata One
+       return info->cheriot == CHERIOT_NONE;
+}
+
 /* Command Handlers */
 COMMAND_HANDLER(riscv_set_command_timeout_sec)
 {
@@ -2859,6 +2879,44 @@ COMMAND_HANDLER(handle_info)
 	return 0;
 }
 
+COMMAND_HANDLER(riscv_enable_cheriot)
+{
+    struct target *target = get_current_target(CMD_CTX);
+    struct enable_cheriot_mapping {
+        char* key;
+        enum cheriot_variant value;
+    };
+    static const struct enable_cheriot_mapping mappings[] = {
+        {"mpw1", CHERIOT_MPW_1},
+        {"mpw2", CHERIOT_MPW_2},
+        {"iceni", CHERIOT_MPW_2},
+        {"sonata", CHERIOT_SONATA},
+        {NULL, CHERIOT_NONE},
+    };
+
+    RISCV_INFO(r);
+    if (CMD_ARGC < 1) {
+        LOG_WARNING("cheriot enabled, but no cheriot target given, defaulting to iceni");
+        r->cheriot = CHERIOT_MPW_2;
+        return ERROR_OK;
+    }
+    if (CMD_ARGC > 1) {
+        command_print(CMD, "Command takes at most 1 parameter");
+        return ERROR_COMMAND_ARGUMENT_INVALID;
+    }
+    for(struct enable_cheriot_mapping *ecm = mappings; ecm->key != NULL; ecm++) {
+        if (strcmp(ecm->key, CMD_ARGV[0]) == 0) {
+            r->cheriot = ecm->value;
+            return ERROR_OK;
+        }
+    }
+
+    LOG_ERROR("Unknown argument '%s'. "
+        "Must be one of: 'MPW1', 'MPW2' (or 'iceni') or 'sonata'.", CMD_ARGV[0]);
+    return ERROR_COMMAND_SYNTAX_ERROR;
+}
+
+
 static const struct command_registration riscv_exec_command_handlers[] = {
 	{
 		.name = "info",
@@ -3015,6 +3073,14 @@ static const struct command_registration riscv_exec_command_handlers[] = {
 		.help = "Control dcsr.ebreaku. When off, U-mode ebreak instructions "
 			"don't trap to OpenOCD. Defaults to on."
 	},
+	{
+        .name = "enable_cheriot",
+        .handler = riscv_enable_cheriot,
+        .mode = COMMAND_ANY,
+        .usage = "[mpw1|mpw2|iceni|sonata]",
+        .help = "Enable cheriot and set the variant"
+    },
+
 	COMMAND_REGISTRATION_DONE
 };
 
@@ -4095,7 +4161,7 @@ int riscv_init_registers(struct target *target)
 			r->feature = &feature_cpu;
 
 			// GPRs are capability-sized on CHERIOT.
-			if (info->cheriot) {
+			if (cheriot_variant_can_access_cap_gpr(info)) {
 				r->size = 64;
 				r->reg_data_type = &type_cheriot_cap;
 			}
@@ -4346,9 +4412,7 @@ int riscv_init_registers(struct target *target)
 					break;
 				case CSR_MTVEC:
 				case CSR_MEPC:
-					/* MTVEC and MEPC are inaccessible on CHERIOT. They must be access via
-					   the special cap registers MTCC and MEPCC respectively. */
-					r->exist = !info->cheriot;
+					r->exist = riscv_can_access_mtvec_mepcc(info);
 			}
 
 			if (!r->exist && !list_empty(&info->expose_csr)) {
