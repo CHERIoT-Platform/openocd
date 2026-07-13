@@ -2904,7 +2904,7 @@ COMMAND_HANDLER(riscv_enable_cheriot)
         command_print(CMD, "Command takes at most 1 parameter");
         return ERROR_COMMAND_ARGUMENT_INVALID;
     }
-    for(struct enable_cheriot_mapping *ecm = mappings; ecm->key != NULL; ecm++) {
+    for(const struct enable_cheriot_mapping *ecm = mappings; ecm->key != NULL; ecm++) {
         if (strcmp(ecm->key, CMD_ARGV[0]) == 0) {
             r->cheriot = ecm->value;
             return ERROR_OK;
