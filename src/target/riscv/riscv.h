@@ -519,4 +519,5 @@ int riscv_can_access_mtvec_mepc(struct riscv_info * info);
 int cheriot_variant_is_cheriot(struct riscv_info * info);
 int cheriot_variant_can_access_cap_gpr(struct riscv_info * info);
 int cheriot_variant_can_spill_registers(struct riscv_info * info);
+int cheriot_variant_can_read_unknown_csrs(struct riscv_info * info);
 #endif /* OPENOCD_TARGET_RISCV_RISCV_H */

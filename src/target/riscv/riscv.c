@@ -4341,6 +4341,15 @@ int riscv_can_access_mtvec_mepc(struct riscv_info * info) {
        return info->cheriot == CHERIOT_NONE;
 }
 
+// Workarounds in some released boards where reading non-existing CSR silently
+// exit debug mode instead of erroring out
+int cheriot_variant_can_read_unknown_csrs(struct riscv_info * info) {
+    return info->cheriot > CHERIOT_MPW_2 || ! cheriot_variant_is_cheriot(info);
+}
+int cheriot_variant_has_triggers(struct riscv_info * info) {
+	//TODO: check Sonata One
+    return info->cheriot > CHERIOT_SONATA;
+}
 /* Command Handlers */
 COMMAND_HANDLER(riscv_set_command_timeout_sec)
 {
@@ -5719,7 +5728,7 @@ COMMAND_HANDLER(riscv_enable_cheriot)
     }
 
     LOG_ERROR("Unknown argument '%s'. "
-        "Must be one of: 'MPW1', 'MPW2' (or 'iceni') or 'sonata'.", CMD_ARGV[0]);
+        "Must be one of: 'mpw1', 'mpw2' (or 'iceni') or 'sonata' for Sonata One boards.", CMD_ARGV[0]);
     return ERROR_COMMAND_SYNTAX_ERROR;
 }
 
@@ -6348,7 +6357,9 @@ static int get_trigger_types(struct target *target, unsigned int *trigger_tinfo,
 {
 	assert(trigger_tinfo);
 	riscv_reg_t tinfo;
-	if (riscv_reg_get(target, &tinfo, GDB_REGNO_TINFO) == ERROR_OK) {
+	RISCV_INFO(info);
+	if (!cheriot_variant_can_read_unknown_csrs(info) && cheriot_variant_has_triggers(info) && (tinfo = 0x4) ||
+	    riscv_reg_get(target, &tinfo, GDB_REGNO_TINFO) == ERROR_OK) {
 		/* tinfo.INFO == 1: trigger doesn’t exist
 		 * tinfo == 0 or tinfo.INFO != 1 and tinfo LSB is set: invalid tinfo */
 		if (tinfo == 0 || tinfo & 0x1)
@@ -6427,12 +6438,17 @@ int riscv_enumerate_triggers(struct target *target)
 		return ERROR_OK;
 	}
 
+	riscv_reg_t tinfo;
+	if(!cheriot_variant_can_read_unknown_csrs(r) && cheriot_variant_has_triggers(r)) {
+		tinfo = 0x4;
+		r->tinfo_version = get_field(tinfo, CSR_TINFO_VERSION);
+		LOG_TARGET_DEBUG(target, "Trigger tinfo.version is 0 on cheriot.");
+	}
 	/* Obtaining tinfo.version value once.
 	 * No need to enumerate per-trigger.
 	 * See https://github.com/riscv/riscv-debug-spec/pull/1081.
 	 */
-	riscv_reg_t tinfo;
-	if (riscv_reg_get(target, &tinfo, GDB_REGNO_TINFO) == ERROR_OK) {
+	else if (riscv_reg_get(target, &tinfo, GDB_REGNO_TINFO) == ERROR_OK) {
 		r->tinfo_version = get_field(tinfo, CSR_TINFO_VERSION);
 		LOG_TARGET_DEBUG(target, "Trigger tinfo.version = %d.", r->tinfo_version);
 	} else {
