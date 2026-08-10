@@ -4295,6 +4295,26 @@ int riscv_openocd_step(struct target *target, bool current,
 		true /* handle_callbacks */);
 }
 
+/*** CHERIOT Helper Functions ***/
+int cheriot_variant_is_cheriot(struct riscv_info * info) {
+       return info->cheriot >= CHERIOT_MPW_1;
+}
+
+int cheriot_variant_can_access_cap_gpr(struct riscv_info * info) {
+       return info->cheriot >= CHERIOT_MPW_1;
+}
+
+int cheriot_variant_can_spill_registers(struct riscv_info * info) {
+       return info->cheriot >= CHERIOT_MPW_2;
+}
+
+int riscv_can_access_mtvec_mepc(struct riscv_info * info) {
+       /* MTVEC and MEPC are inaccessible on CHERIOT. They must be access via
+          the special cap registers MTCC and MEPCC respectively. */
+       // TODO: check on Sonata One
+       return info->cheriot == CHERIOT_NONE;
+}
+
 /* Command Handlers */
 COMMAND_HANDLER(riscv_set_command_timeout_sec)
 {
@@ -5610,6 +5630,43 @@ COMMAND_HANDLER(handle_riscv_virt2phys_mode)
 	return ERROR_OK;
 }
 
+COMMAND_HANDLER(riscv_enable_cheriot)
+{
+    struct target *target = get_current_target(CMD_CTX);
+    struct enable_cheriot_mapping {
+        char* key;
+        enum cheriot_variant value;
+    };
+    static const struct enable_cheriot_mapping mappings[] = {
+        {"mpw1", CHERIOT_MPW_1},
+        {"mpw2", CHERIOT_MPW_2},
+        {"iceni", CHERIOT_MPW_2},
+        {"sonata", CHERIOT_SONATA},
+        {NULL, CHERIOT_NONE},
+    };
+
+    RISCV_INFO(r);
+    if (CMD_ARGC < 1) {
+        LOG_WARNING("cheriot enabled, but no cheriot target given, defaulting to iceni");
+        r->cheriot = CHERIOT_MPW_2;
+        return ERROR_OK;
+    }
+    if (CMD_ARGC > 1) {
+        command_print(CMD, "Command takes at most 1 parameter");
+        return ERROR_COMMAND_ARGUMENT_INVALID;
+    }
+    for(const struct enable_cheriot_mapping *ecm = mappings; ecm->key != NULL; ecm++) {
+        if (strcmp(ecm->key, CMD_ARGV[0]) == 0) {
+            r->cheriot = ecm->value;
+            return ERROR_OK;
+        }
+    }
+
+    LOG_ERROR("Unknown argument '%s'. "
+        "Must be one of: 'MPW1', 'MPW2' (or 'iceni') or 'sonata'.", CMD_ARGV[0]);
+    return ERROR_COMMAND_SYNTAX_ERROR;
+}
+
 static const struct command_registration riscv_exec_command_handlers[] = {
 	{
 		.name = "dump_sample_buf",
@@ -5875,6 +5932,13 @@ static const struct command_registration riscv_exec_command_handlers[] = {
 	{
 		.chain = smp_command_handlers
 	},
+	{
+        .name = "enable_cheriot",
+        .handler = riscv_enable_cheriot,
+        .mode = COMMAND_ANY,
+        .usage = "[mpw1|mpw2|iceni|sonata]",
+        .help = "Enable cheriot and set the variant"
+    },
 	COMMAND_REGISTRATION_DONE
 };
 

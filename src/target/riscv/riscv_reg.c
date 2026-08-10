@@ -314,6 +314,16 @@ static const char *gdb_regno_group(uint32_t regno)
 	return "custom";
 }
 
+
+static bool cheriot_register_is_scr(int regno) {
+  return regno >= GDB_REGNO_COUNT;
+}
+
+static bool cheriot_register_is_capability(int regno) {
+  return (regno <= GDB_REGNO_XPR15 || regno == GDB_REGNO_PC ||
+          cheriot_register_is_scr(regno));
+}
+
 uint32_t gdb_regno_size(const struct target *target, uint32_t regno)
 {
 	if (regno >= GDB_REGNO_FPR0 && regno <= GDB_REGNO_FPR31)
@@ -338,7 +348,13 @@ uint32_t gdb_regno_size(const struct target *target, uint32_t regno)
 			return 32;
 		}
 	}
-	return riscv_xlen(target);
+	// GPRs are 64 bits with capabilities
+	RISCV_INFO(r);
+    if (cheriot_variant_can_access_cap_gpr(r) && cheriot_register_is_capability(regno)) {
+      return 64;
+    }
+
+    return riscv_xlen(target);
 }
 
 static bool vlenb_exists(const struct target *target)
@@ -541,6 +557,10 @@ bool riscv_reg_impl_gdb_regno_exist(const struct target *target, uint32_t regno)
 		return reg_exists(target, GDB_REGNO_MTOPI) &&
 			riscv_xlen(target) == 32 &&
 			riscv_supports_extension(target, 'H');
+	case CSR_MEPC:
+	case CSR_MTVEC:
+		RISCV_INFO(info);
+		return !cheriot_variant_is_cheriot(info) || riscv_can_access_mtvec_mepc(info);
 	}
 	return is_known_standard_csr(csr_number);
 }

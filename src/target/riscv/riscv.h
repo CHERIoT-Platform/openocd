@@ -92,6 +92,13 @@ enum riscv_hart_state {
 };
 
 /* RISC-V-specific data assigned to a register. */
+enum cheriot_variant {
+    CHERIOT_NONE = 0, // We want to ensure this is falsely
+    CHERIOT_SONATA,
+    CHERIOT_MPW_1,
+    CHERIOT_MPW_2,
+};
+
 typedef struct {
 	struct target *target;
 	/* Abstract command's regno for a custom register. */
@@ -179,6 +186,10 @@ struct riscv_info {
 	int xlen;
 	/* TODO: use the value from the register cache instead. */
 	riscv_reg_t misa;
+
+	/* Whether the hart implements CHERIOT or not, and which version */
+	enum cheriot_variant cheriot;
+
 	/* TODO: use the value from the register cache instead.
 	 * Cached value of vlenb. 0 indicates there is no vector support.
 	 * Note that you can have vector support without misa.V set, because
@@ -502,4 +513,9 @@ void riscv_add_bscan_tunneled_scan(struct jtag_tap *tap, const struct scan_field
 int riscv_read_by_any_size(struct target *target, target_addr_t address, uint32_t size, uint8_t *buffer);
 int riscv_write_by_any_size(struct target *target, target_addr_t address, uint32_t size, uint8_t *buffer);
 
+// CHERIOT Helper functions
+int riscv_can_access_mtvec_mepc(struct riscv_info * info);
+int cheriot_variant_is_cheriot(struct riscv_info * info);
+int cheriot_variant_can_access_cap_gpr(struct riscv_info * info);
+int cheriot_variant_can_spill_registers(struct riscv_info * info);
 #endif /* OPENOCD_TARGET_RISCV_RISCV_H */
