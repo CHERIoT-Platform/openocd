@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include "riscv.h"
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -108,6 +109,11 @@ static int examine_xlen(struct target *target)
 {
 	RISCV_INFO(r);
 	unsigned int cmderr;
+	if(cheriot_variant_is_cheriot(r)) {
+		LOG_TARGET_DEBUG(target, "Overloading xlen to 32 on CHERIOT.");
+		r->xlen = 32;
+		return ERROR_OK;
+	}
 
 	const uint32_t command = riscv013_access_register_command(target,
 			GDB_REGNO_S0, /* size */ 64, AC_ACCESS_REGISTER_TRANSFER);
