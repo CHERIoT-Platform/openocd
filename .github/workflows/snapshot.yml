@@ -2,13 +2,24 @@
 
 # Copyright (C) 2020 by Tarek BOUCHKATI <tarek.bouchkati@gmail.com>
 
-on: push
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  pull_request:
 
-name: OpenOCD Snapshot
+name: OpenOCD Build
 
 jobs:
   package:
-    runs-on: [ubuntu-latest]
+    strategy:
+      matrix:
+        target: [x86_64-pc-linux-gnu]
+        # For now, Windows build is brokewn
+        # target: [x86_64-pc-linux-gnu, i686-w64-mingw32]
+    # Use the same as the devcontainer
+    runs-on: [ubuntu-24.04]
     env:
       DL_DIR: ../downloads
       BUILD_DIR: ../build
@@ -16,7 +27,7 @@ jobs:
       - name: Install needed packages
         run: |
           sudo apt-get update
-          sudo apt-get install autotools-dev autoconf automake libtool pkg-config cmake texinfo texlive g++-mingw-w64-i686
+          sudo apt-get install autotools-dev autoconf automake libtool pkg-config cmake texinfo texlive g++-mingw-w64-i686 g++ libudev-dev
       - name: Checkout Code
         uses: actions/checkout@v4
       - run: ./bootstrap
@@ -74,11 +85,12 @@ jobs:
           wget https://github.com/msteveb/jimtcl/archive/refs/tags/${JIMTCL_VER}.tar.gz
           tar -xzf ${JIMTCL_VER}.tar.gz
           echo "JIMTCL_SRC=$PWD/jimtcl-${JIMTCL_VER}" >> $GITHUB_ENV
-      - name: Package OpenOCD for windows
+      - name: Package OpenOCD
         env:
           MAKE_JOBS: 2
-          HOST: i686-w64-mingw32
-          LIBUSB1_CONFIG: --enable-shared --disable-static
+          HOST: ${{ matrix.target }}
+          # LIBUSB1_CONFIG: --enable-shared --disable-static
+          LIBUSB1_CONFIG: --enable-static --disable-shared
           HIDAPI_CONFIG: --enable-shared --disable-static --disable-testgui
           LIBFTDI_CONFIG: -DSTATICLIBS=OFF -DEXAMPLES=OFF -DFTDI_EEPROM=OFF
           CAPSTONE_CONFIG: "CAPSTONE_BUILD_CORE_ONLY=yes CAPSTONE_STATIC=yes CAPSTONE_SHARED=no"
@@ -97,35 +109,28 @@ jobs:
           export OPENOCD_TAG=$OPENOCD_TAG
           export OPENOCD_SRC=$PWD
           export OPENOCD_CONFIG=""
-          mkdir -p $BUILD_DIR &&  cd $BUILD_DIR
-          bash $OPENOCD_SRC/contrib/cross-build.sh $HOST
-          # add missing dlls
-          cd $HOST-root/usr
-          cp `$HOST-gcc --print-file-name=libwinpthread-1.dll` ./bin/
-          # required by libftdi1.dll
-          cp `$HOST-gcc --print-file-name=libgcc_s_dw2-1.dll` ./bin/
+          BUILD_DIR=$(realpath "$BUILD_DIR")
+          export PREFIX=/usr
+          mkdir -p $BUILD_DIR && cd $BUILD_DIR
+
+
+          if [[ "$HOST" == *"linux"* ]]; then
+            bash $OPENOCD_SRC/contrib/localbuild.sh
+          elif [[ "$HOST" == *"w64"* ]]; then
+            # add missing dlls for Windows and cross build
+            bash $OPENOCD_SRC/contrib/cross-build.sh $HOST
+            cd $HOST-root/usr
+            cp `$HOST-gcc --print-file-name=libwinpthread-1.dll` ./bin/
+            # required by libftdi1.dll
+            cp `$HOST-gcc --print-file-name=libgcc_s_dw2-1.dll` ./bin/
+          fi
           # prepare the artifact
           ARTIFACT="openocd-${OPENOCD_TAG}-${HOST}.tar.gz"
           tar -czf $ARTIFACT *
           echo "RELEASE_NAME=$RELEASE_NAME" >> $GITHUB_ENV
           echo "IS_PRE_RELEASE=$IS_PRE_RELEASE" >> $GITHUB_ENV
           echo "ARTIFACT_PATH=$PWD/$ARTIFACT" >> $GITHUB_ENV
-      - name: Publish OpenOCD packaged for windows
+      - name: Publish OpenOCD
         uses: actions/upload-artifact@v4
         with:
           path: ${{ env.ARTIFACT_PATH }}
-      - name: Delete 'latest' Release
-        uses: dev-drprasad/delete-tag-and-release@v1.1
-        with:
-          delete_release: true
-          tag_name: ${{ env.RELEASE_NAME }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Create Release
-        uses: ncipollo/release-action@v1
-        with:
-          tag: ${{ env.RELEASE_NAME }}
-          commit: ${{ github.sha }}
-          draft: false
-          artifacts: ${{ env.ARTIFACT_PATH }}
-          prerelease: ${{ env.IS_PRE_RELEASE }}
-          token: ${{ secrets.GITHUB_TOKEN }}
