@@ -6345,6 +6345,15 @@ int riscv_enumerate_triggers(struct target *target)
 	if (r->triggers_enumerated)
 		return ERROR_OK;
 
+	if(cheriot_variant_is_cheriot(r)) {
+		LOG_TARGET_INFO(target, "Assuming that triggers are not implemented on cheriot.");
+		r->triggers_enumerated = true;
+		r->trigger_count = 0;
+		free(r->reserved_triggers);
+		r->reserved_triggers = NULL;
+		return ERROR_OK;
+	}
+
 	if (target->state != TARGET_HALTED) {
 		LOG_TARGET_ERROR(target, "Unable to enumerate triggers: target not halted.");
 		return ERROR_TARGET_NOT_HALTED;

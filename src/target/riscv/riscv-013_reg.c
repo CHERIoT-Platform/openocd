@@ -143,6 +143,12 @@ static int examine_vlenb(struct target *target)
 	if (res != ERROR_OK)
 		return res;
 
+	if (!riscv_supports_extension(target, 'V')) {
+		LOG_TARGET_DEBUG(target, "mstatus.vs is not set, vector extension should not be enabled.");
+		r->vlenb = 0;
+		return riscv_reg_impl_set_exist(target, GDB_REGNO_VLENB, false);
+	}
+
 	riscv_reg_t vlenb_val;
 	if (riscv_reg_get(target, &vlenb_val, GDB_REGNO_VLENB) != ERROR_OK) {
 		if (riscv_supports_extension(target, 'V'))
@@ -279,6 +285,15 @@ static int examine_mtopi(struct target *target)
 	res = assume_reg_exist(target, GDB_REGNO_MTOPEI);
 	if (res != ERROR_OK)
 		return res;
+
+	// FIXME: Should find an actual way to probe
+	RISCV_INFO(r);
+	if(cheriot_variant_is_cheriot(r)) {
+		res = riscv_reg_impl_set_exist(target, GDB_REGNO_MTOPI, false);
+			if (res != ERROR_OK)
+				return res;
+		return riscv_reg_impl_set_exist(target, GDB_REGNO_MTOPEI, false);
+	}
 
 	riscv_reg_t value;
 	if (riscv_reg_get(target, &value, GDB_REGNO_MTOPI) != ERROR_OK) {
