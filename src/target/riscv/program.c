@@ -38,11 +38,71 @@ int riscv_program_write(struct riscv_program *program)
 	return ERROR_OK;
 }
 
+static unsigned int cheriot_get_saverestore_csr(enum gdb_regno regid) {
+	unsigned offset = regid - (GDB_REGNO_ZERO + 1);
+	return offset + 9;
+}
+
+int cheriot_save_register(struct target *target, enum gdb_regno regid) {
+	struct riscv_info *info = target->arch_info;
+	if (!cheriot_variant_can_spill_registers(info)) {
+		return ERROR_FAIL;
+	}
+
+	if (regid < GDB_REGNO_ZERO + 1 || regid > GDB_REGNO_XPR15) {
+		return ERROR_FAIL;
+	}
+
+	unsigned scr = cheriot_get_saverestore_csr(regid);
+
+	struct riscv_program program;
+	riscv_program_init(&program, target);
+	riscv_program_insert(&program, ct_cspecialw(scr, regid - GDB_REGNO_ZERO));
+
+	if (riscv_program_exec(&program, target) != ERROR_OK) {
+		return ERROR_FAIL;
+	}
+
+	return ERROR_OK;
+}
+
+int cheriot_restore_register(struct target *target, enum gdb_regno regid) {
+	struct riscv_info *info = target->arch_info;
+	if (!cheriot_variant_can_spill_registers(info)) {
+		return ERROR_FAIL;
+	}
+
+	if (regid < GDB_REGNO_ZERO + 1 || regid > GDB_REGNO_XPR15) {
+		return ERROR_FAIL;
+	}
+
+	unsigned scr = cheriot_get_saverestore_csr(regid);
+
+	struct riscv_program program;
+	riscv_program_init(&program, target);
+	riscv_program_insert(&program, ct_cspecialr(regid - GDB_REGNO_ZERO, scr));
+	// NOTE: Intentionally do not set writes_xreg[i], even though we do,
+	// because we don't want to recursively trigger another save/restore.
+
+	if (riscv_program_exec(&program, target) != ERROR_OK) {
+		return ERROR_FAIL;
+	}
+
+	// Invalidate the register cache
+	// FIXME: This could be done fine-grained.
+	register_cache_invalidate(target->reg_cache);
+
+	return ERROR_OK;
+}
+
 /** Add ebreak and execute the program. */
 int riscv_program_exec(struct riscv_program *p, struct target *t)
 {
 	keep_alive();
 
+	// Register saving / restoring was removed in
+	// https://github.com/riscv-collab/riscv-openocd
+	// commit d0615e4a12f5be543ea29e89dcfab5bdb9d9c011
 	p->execution_result = RISCV_PROGBUF_EXEC_RESULT_UNKNOWN;
 
 	if (riscv_program_ebreak(p) != ERROR_OK) {

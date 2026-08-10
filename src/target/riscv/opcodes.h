@@ -446,4 +446,13 @@ static uint32_t vslide1down_vx(unsigned int vd, unsigned int vs2,
 	return (vm ? (1u << 25) : 0u) | inst_rs2(vs2) | inst_rs1(rs1) | inst_rd(vd) | MATCH_VSLIDE1DOWN_VX;
 }
 
+static uint32_t ct_cspecialw(unsigned int scr, unsigned int cs1)
+{
+	return (0x1 << 25) | ((scr & 0x1F) << 20) | inst_rs1(cs1) | 0x5B;
+}
+
+static uint32_t ct_cspecialr(unsigned int cd, unsigned int scr)
+{
+	return (0x1 << 25) | ((scr & 0x1F) << 20) | inst_rd(cd) | 0x5B;
+}
 #endif /* OPENOCD_TARGET_RISCV_OPCODES_H */

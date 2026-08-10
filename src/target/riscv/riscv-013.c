@@ -4354,6 +4354,9 @@ static int read_word_from_dm_data_regs(struct target *target,
 	return result;
 }
 
+int cheriot_save_register(struct target *target, enum gdb_regno regid);
+int cheriot_restore_register(struct target *target, enum gdb_regno regid);
+
 static struct mem_access_result read_word_from_s1(struct target *target,
 		const struct riscv_mem_access_args args, uint32_t index)
 {
