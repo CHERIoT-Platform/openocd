@@ -130,7 +130,7 @@ cd $OPENOCD_BUILD_DIR
 $OPENOCD_SRC/configure --build=`$OPENOCD_SRC/config.guess` \
 --with-sysroot=$SYSROOT --prefix=$PREFIX \
 $OPENOCD_CONFIG
-make -j $MAKE_JOBS CFLAGS="-Wno-error"
+make -j $MAKE_JOBS
 make install-strip DESTDIR=$SYSROOT
 
 # Separate OpenOCD install w/o dependencies. OpenOCD will have to be linked

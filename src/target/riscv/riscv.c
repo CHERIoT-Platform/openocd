@@ -6358,7 +6358,7 @@ static int get_trigger_types(struct target *target, unsigned int *trigger_tinfo,
 	assert(trigger_tinfo);
 	riscv_reg_t tinfo;
 	RISCV_INFO(info);
-	if (!cheriot_variant_can_read_unknown_csrs(info) && cheriot_variant_has_triggers(info) && (tinfo = 0x4) ||
+	if ((!cheriot_variant_can_read_unknown_csrs(info) && cheriot_variant_has_triggers(info) && (tinfo = 0x4)) ||
 	    riscv_reg_get(target, &tinfo, GDB_REGNO_TINFO) == ERROR_OK) {
 		/* tinfo.INFO == 1: trigger doesn’t exist
 		 * tinfo == 0 or tinfo.INFO != 1 and tinfo LSB is set: invalid tinfo */
